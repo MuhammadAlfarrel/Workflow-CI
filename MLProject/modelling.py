@@ -8,7 +8,7 @@ import os
 
 # 1. Load Dataset
 # Pastikan file diabetes_cleaning.csv ada di folder yang sama
-df = pd.read_csv("diabetes_cleaning.csv")
+df = pd.read_csv("diabetes_clean.csv")
 
 # Sesuaikan target column (contoh di sini 'Outcome')
 X = df.drop('Outcome', axis=1)
