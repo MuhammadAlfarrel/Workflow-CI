@@ -1,7 +1,11 @@
-name: Diabetes Prediction CI
+name: diabetes-prediction-project
 
 conda_env: conda.yaml
 
 entry_points:
   main:
-    command: "python modelling.py"
+    parameters:
+      n_estimators: {type: int, default: 100}
+      max_depth: {type: int, default: 10}
+      dataset: {type: string, default: "diabetes_clean.csv"}
+    command: "python modelling.py {n_estimators} {max_depth} {dataset}"

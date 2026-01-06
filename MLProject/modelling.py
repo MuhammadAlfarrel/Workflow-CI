@@ -1,51 +1,62 @@
-import pandas as pd
-from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score
 import mlflow
-import mlflow.sklearn
+import pandas as pd
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
 import os
+import numpy as np
+import warnings
+import sys
 
-# 1. Load Dataset
-print("Loading dataset...")
-df = pd.read_csv("diabetes_clean.csv")
+if __name__ == "__main__":
+    warnings.filterwarnings("ignore")
+    np.random.seed(40)
 
-# 2. Preprocessing
-# Target kolom Anda adalah 'Diabetes_binary'
-target_col = 'Diabetes_binary'
+    # Menentukan path file dataset
+    # Jika argumen ke-3 tidak ada, default ke diabetes_clean.csv di folder yang sama
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    file_path = sys.argv[3] if len(sys.argv) > 3 else os.path.join(script_dir, "diabetes_clean.csv")
+    
+    try:
+        data = pd.read_csv(file_path)
+    except FileNotFoundError:
+        print(f"Error: File {file_path} not found.")
+        sys.exit(1)
 
-print(f"Menggunakan kolom target: {target_col}")
+    # PENTING: Ganti "Outcome" dengan nama kolom target di diabetes_clean.csv kamu
+    target_column = "Outcome" 
 
-# Pisahkan Fitur (X) dan Target (y)
-X = df.drop(target_col, axis=1)
-y = df[target_col]
+    if target_column not in data.columns:
+        print(f"Error: Kolom target '{target_column}' tidak ditemukan di dataset.")
+        sys.exit(1)
 
-# Split Data (80% Train, 20% Test)
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    X = data.drop(target_column, axis=1)
+    y = data[target_column]
 
-# 3. MLflow Tracking
-# Set nama eksperimen (opsional, tapi rapi)
-mlflow.set_experiment("Diabetes_CI_Experiment")
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, random_state=42, test_size=0.2
+    )
 
-with mlflow.start_run() as run:
-    print("Training model...")
-    # Train Model
-    model = LogisticRegression(max_iter=1000) # Tambah max_iter agar konvergensi aman
-    model.fit(X_train, y_train)
+    # Input example untuk signature model
+    input_example = X_train.iloc[0:5]
 
-    # Predict & Evaluate
-    predictions = model.predict(X_test)
-    accuracy = accuracy_score(y_test, predictions)
+    # Mengambil parameter dari argumen (jika ada) atau default
+    n_estimators = int(sys.argv[1]) if len(sys.argv) > 1 else 100
+    max_depth = int(sys.argv[2]) if len(sys.argv) > 2 else 10
 
-    print(f"Model Accuracy: {accuracy}")
+    print(f"Training dengan n_estimators={n_estimators}, max_depth={max_depth}")
 
-    # Log Metrics & Model ke MLflow
-    mlflow.log_metric("accuracy", accuracy)
-    mlflow.sklearn.log_model(model, "model")
+    with mlflow.start_run():
+        model = RandomForestClassifier(n_estimators=n_estimators, max_depth=max_depth)
+        model.fit(X_train, y_train)
 
-    # [PENTING] Simpan Run ID ke file txt
-    # File ini akan dibaca oleh GitHub Actions untuk build Docker Image
-    with open("run_id.txt", "w") as f:
-        f.write(run.info.run_id)
+        # Logging Model
+        mlflow.sklearn.log_model(
+            sk_model=model,
+            artifact_path="model",
+            input_example=input_example
+        )
 
-    print(f"Run ID: {run.info.run_id} berhasil disimpan ke run_id.txt")
+        # Logging Metrics
+        accuracy = model.score(X_test, y_test)
+        print(f"Accuracy: {accuracy}")
+        mlflow.log_metric("accuracy", accuracy)
