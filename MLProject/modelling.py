@@ -7,22 +7,30 @@ import mlflow.sklearn
 import os
 
 # 1. Load Dataset
-# Pastikan file diabetes_cleaning.csv ada di folder yang sama
+print("Loading dataset...")
 df = pd.read_csv("diabetes_clean.csv")
 
-# Sesuaikan target column (contoh di sini 'Outcome')
-X = df.drop('Outcome', axis=1)
-y = df['Outcome']
+# 2. Preprocessing
+# Target kolom Anda adalah 'Diabetes_binary'
+target_col = 'Diabetes_binary'
 
-# Split Data
+print(f"Menggunakan kolom target: {target_col}")
+
+# Pisahkan Fitur (X) dan Target (y)
+X = df.drop(target_col, axis=1)
+y = df[target_col]
+
+# Split Data (80% Train, 20% Test)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# 2. MLflow Tracking
+# 3. MLflow Tracking
+# Set nama eksperimen (opsional, tapi rapi)
 mlflow.set_experiment("Diabetes_CI_Experiment")
 
 with mlflow.start_run() as run:
+    print("Training model...")
     # Train Model
-    model = LogisticRegression()
+    model = LogisticRegression(max_iter=1000) # Tambah max_iter agar konvergensi aman
     model.fit(X_train, y_train)
 
     # Predict & Evaluate
@@ -31,13 +39,13 @@ with mlflow.start_run() as run:
 
     print(f"Model Accuracy: {accuracy}")
 
-    # Log Metrics & Model
+    # Log Metrics & Model ke MLflow
     mlflow.log_metric("accuracy", accuracy)
     mlflow.sklearn.log_model(model, "model")
 
-    # [PENTING] Simpan Run ID ke file txt agar bisa dibaca oleh GitHub Actions
-    # untuk keperluan build docker image
+    # [PENTING] Simpan Run ID ke file txt
+    # File ini akan dibaca oleh GitHub Actions untuk build Docker Image
     with open("run_id.txt", "w") as f:
         f.write(run.info.run_id)
 
-    print(f"Run ID: {run.info.run_id} saved to run_id.txt")
+    print(f"Run ID: {run.info.run_id} berhasil disimpan ke run_id.txt")
