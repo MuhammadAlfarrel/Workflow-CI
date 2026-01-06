@@ -23,7 +23,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     # PENTING: Ganti "Outcome" dengan nama kolom target di diabetes_clean.csv kamu
-    target_column = "Outcome" 
+    target_column = "Diabetes_binary" 
 
     if target_column not in data.columns:
         print(f"Error: Kolom target '{target_column}' tidak ditemukan di dataset.")
