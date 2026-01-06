@@ -1,0 +1,69 @@
+name: MLflow CI Pipeline
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build-and-train:
+    runs-on: ubuntu-latest
+    
+    steps:
+    # 1. Checkout Code
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    # 2. Setup Python
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    # 3. Install Dependencies Dasar
+    - name: Install dependencies
+      run: |
+        pip install mlflow pandas scikit-learn numpy virtualenv
+
+    # 4. Jalankan MLflow Project (Training)
+    - name: Run MLflow Project
+      run: |
+        cd MLProject
+        mlflow run . --no-conda
+        # Note: --no-conda digunakan agar lebih cepat di CI (menggunakan env python runner), 
+        # tapi jika ingin isolasi ketat, hapus flag ini.
+
+    # 5. Build Docker Image dari Model hasil training tadi
+    # Kita membaca run_id.txt yang dihasilkan oleh modelling.py
+    - name: Build Docker Image using MLflow
+      run: |
+        cd MLProject
+        RUN_ID=$(cat run_id.txt)
+        echo "Building Docker for Run ID: $RUN_ID"
+        
+        # Format MLflow URI: runs:/<run_id>/model
+        mlflow models build-docker \
+          -m "runs:/$RUN_ID/model" \
+          -n "${{ secrets.DOCKER_USERNAME }}/diabetes-model:latest" \
+          --enable-mlserver
+
+    # 6. Login ke Docker Hub
+    - name: Login to Docker Hub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+
+    # 7. Push Docker Image ke Docker Hub (Kriteria Advance)
+    - name: Push Docker Image
+      run: |
+        docker push ${{ secrets.DOCKER_USERNAME }}/diabetes-model:latest
+
+    # 8. Upload Artifact (Opsional - Kriteria Skilled)
+    # Menyimpan folder mlruns sebagai artifact di GitHub
+    - name: Upload MLruns Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: mlruns-experiment
+        path: MLProject/mlruns
