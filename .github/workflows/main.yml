@@ -30,10 +30,8 @@ jobs:
     - name: Run MLflow Project
       run: |
         cd MLProject
-        mlflow run . --no-conda
-        # Note: --no-conda digunakan agar lebih cepat di CI (menggunakan env python runner), 
-        # tapi jika ingin isolasi ketat, hapus flag ini.
-
+        # PERBAIKAN: Gunakan --env-manager=local sebagai pengganti --no-conda
+        mlflow run . --env-manager=local
     # 5. Build Docker Image dari Model hasil training tadi
     # Kita membaca run_id.txt yang dihasilkan oleh modelling.py
     - name: Build Docker Image using MLflow
